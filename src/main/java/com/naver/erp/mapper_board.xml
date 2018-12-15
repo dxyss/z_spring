@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm-->
+<!-- mapper 태그선언 -->
+<!--mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm-->
+<!--    namespace 속성값으로 [DAO 인터페이스명]이 오며 [DAO 인터페이스] 메소드명과 동일한 id 값을 소유한 태그를 내포고 있다.-->
+<!--*******************************************************-->
+<mapper namespace="com.naver.erp.BoardDAO">
+   
+   <!--*******************************************************-->
+   <!-- 게시판 검색 총 행의 개수 검색하는 select 문을 내포한 select 태그 선언-->
+   <!--*******************************************************-->
+   
+  		<!-- select 태그의 parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+  		<!-- select 태그의 resultType 속성은 select 쿼리 실행후 리턴하는 데이터의 자료형이다 -->
+  		<!-- 1행 1열을 리턴하므로 resultType 속성은 기본형이다. -->
+   <select id="getBoardListCnt" parameterType="com.naver.erp.BoardSearchDTO" resultType="int">
+   		<!-- 아래 SQL 구문에서 #{속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열이면 싱글쿼트(') 를 붙여 표현한다 -->
+	   		<!-- 이때 데이터가 숫자면 싱글쿼트(') 없이 표현한다 -->
+	   	<!-- 아래 SQL 구문에서 ${속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열,숫자 상관웞이 싱글쿼트(')없이 표현한다 -->
+      select 
+          count(*)
+      from board b      
+      <!--===================================-->   
+      <!-- BoardSearchFormDTO 객체의 속성변수 keyword 안의 데이터를 where 절에 삽입-->   
+      <!--===================================-->
+      where 1=1         
+      <if test="keyword!=null and keyword!=''">
+         <if test="keywordTarget=='subject'">
+            <!-- and upper(b.subject) like upper('%${keyword}%')  -->
+            and b.group_no=any(
+               select group_no from board where upper(subject) like upper('%${keyword}%') 
+            )
+         </if>
+         <if test="keywordTarget=='content'">
+            and b.group_no=any(
+               select group_no from board where upper(content) like upper('%${keyword}%') 
+            )
+         </if>
+         <if test="keywordTarget=='writer'">
+            and b.group_no=any(
+               select group_no from board where upper(writer) like upper('%${keyword}%') 
+            )
+         </if>
+      </if>      
+      
+   </select>
+   
+   
+   <!-- 게시판 검색 총 행의 개수 검색하는 select 문을 내포한 select 태그 선언 -->
+  		<!-- select 태그의 parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+  		<!-- select 태그의 resultType 속성은 select 쿼리 실행후 리턴하는 데이터의 자료형이다 -->
+  		<!-- [주의] n행 n열을 리턴할 경우 resultType 속성에는 한 행의 데이터로 저장할 자료형을 설정한다 -->
+  		<!-- 		절대 ArrayList 같은 자료형은 쓰지 않는다. -->
+  		<!-- 		결론적으로 select 구문이 1행 n열을 리턴하거나 n행 n열 을 리턴할 경우 -->
+  		<!--  		resultType 속성은 무조건 1행을 저장할 자료형인 Map이나 DTO를 사용한다. -->
+   <select id="getBoardList" parameterType="com.naver.erp.BoardSearchDTO" resultType="java.util.HashMap">
+     <!-- 아래  SQL 구문에서 #{b_no} 의미 -->
+		   	<!-- parameterType 속성에서 지정한 int 형의 데이터를 표현하라 -->
+		   	<!-- 이때 b_no 라는 스펠링은 다른 아무 것으로도 대체가 가능하다. -->
+		   	<!-- 즉 parameterType 속성에 숫자형, String형, Wraper형이 들어오면 아래 SQL 구문에 표현할 때 -->
+		   	<!-- #{아무이름명} 또는 ${아무이름명}으로 표현한다 -->
+		   	<!-- #이 붙으면 숫자형은 ' 없이 표현하고 String 형은 '를 붙여 표현한다. -->
+		   	<!-- $이 붙으면 숫자형은 ' 없이 표현한다. --> 
+   <!--+++++++++++++++++++++++++++++++++++++++++++++++++++++-->   
+      select * from (select zzz.*, rownum||'' RNUM from (
+   <!--+++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+   
+      select 
+      
+          b_no||''                     as "b_no"
+          , subject                        as "subject"
+          , writer                        as "writer"
+          , to_char(reg_date,'YYYY-MM-DD')      as "reg_date"
+          , readcount||''                  as "readcount"
+          , content                        as "content"
+          , pwd                           as "pwd"
+          , email                        as "email"
+          , group_no||''                     as "group_no"
+          , print_no||''                     as "print_no"
+          , print_level||''                  as "print_level"
+          
+          
+      from board b   
+      
+      <!--======================================================================-->
+      <!--BoardSearchDTO 객체의 속성변수 keyword 안의 데이터를 where 절에 삽입 -->
+      <!--======================================================================-->
+      where 1=1
+      <!-- BoardSearchDTO 객체 소유의 속성변수 keyword에 null 아니거나 길이가 있는 문자면 -->
+      <!-- 즉 키워드에 문자열이 있으면 -->
+      <if test="keyword!=null and keyword!=''">
+         <if test="keywordTarget=='subject'">
+            and b.group_no=any(
+               select group_no from board where upper(subject) like upper('%${keyword}%') 
+            )
+         </if>
+         <if test="keywordTarget=='content'">
+            and b.group_no=any(
+               select group_no from board where upper(content) like upper('%${keyword}%') 
+            )
+         </if>
+         <if test="keywordTarget=='writer'">
+            and b.group_no=any(
+               select group_no from board where upper(writer) like upper('%${keyword}%') 
+            )
+         </if>
+      </if>   
+      <!--=======================-->
+      <!-- order by 절 선언 -->
+      <!--=======================-->
+         order by group_no desc, print_no asc
+         <!--=======================-->
+         <![CDATA[
+         ) zzz) where RNUM >= ${beginRowNo}
+                  and RNUM <= ${endRowNo}
+         ]]>         
+         
+         <!--=======================-->
+   </select>   
+   
+   <!-- 게시판에서 새글쓰기 또는 댓글쓰기하는 insert 문을 내포한 insert 태그 선언 -->
+   <!-- parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+   <!-- insert 태그안에는 resultType 속성이 없다. 리턴값은 값은 자동으로 int 형이다 -->
+   <!-- insert,update,delete 태그도 동일하다. -->
+   <insert id="insertBoard" parameterType="com.naver.erp.BoardDTO">
+   <!-- 아래  SQL 구문에서 #{b_no} 의미 -->
+		   	<!-- parameterType 속성에서 지정한 int 형의 데이터를 표현하라 -->
+		   	<!-- 이때 b_no 라는 스펠링은 다른 아무 것으로도 대체가 가능하다. -->
+		   	<!-- 즉 parameterType 속성에 숫자형, String형, Wraper형이 들어오면 아래 SQL 구문에 표현할 때 -->
+		   	<!-- #{아무이름명} 또는 ${아무이름명}으로 표현한다 -->
+		   	<!-- #이 붙으면 숫자형은 ' 없이 표현하고 String 형은 '를 붙여 표현한다. -->
+		   	<!-- $이 붙으면 숫자형은 ' 없이 표현한다. -->
+
+   	insert into board(
+   			b_no
+          , subject                        
+          , writer                           
+          , readcount
+          , content                      
+          , pwd                         
+          , email                        
+          , group_no                     
+          , print_no                     
+          , print_level                  
+   	) values(
+   		(select nvl(max(b_no),0)+1 from board)
+   		, #{subject}
+   		, #{writer}
+   		, #{readcount}
+   		, #{content}
+   		, #{pwd}
+   		, #{email}
+   		<!-- 만약 엄마 게시판 번호가 없으면 -->
+   		<!-- 즉 새글쓰기 모드면 -->
+   		<!-- 즉 만약 BoardDTO 객체의 b_no 속성변수 안에 null 또는 길이 없는 문자가 들어있으면 -->
+   		<!-- 메인글로 그룹번호로 pk값 저장하고 출력번호는 0번 저장하고 들여쓰기번호는 0으로 해라 -->
+   		<if test="b_no==null or b_no==''">
+   			, (select nvl(max(b_no),0)+1 from board)
+   			, 0
+   			, 0
+   		</if>
+   		
+   		<!-- 만약 엄마게시판 번호가 있으면-->
+   		<!-- 즉 댓글쓰기 모드면, -->
+   		<!-- 즉 만약 BoardDTO 객체의 b_no 속성변수안에 null 아니고 길이가 있는 문자면 -->
+   		<!-- 댓글로 그룹번호로 엄마pk값 저장하고 -->
+   		<!-- 출력번호는 엄마꺼보다 1개 큰 걸로 하고 -->
+   		<!-- 들여쓰기번호는 엄마꺼보다 1개 큰 걸로 입력해라 -->
+   		<if test="b_no!=null and b_no!='' ">
+   			,(select group_no from board where b_no=${b_no})
+   			,(select print_no+1 from board where b_no=${b_no})
+   			,(select print_level+1 from board where b_no=${b_no})
+   		</if>
+   	)
+   </insert>
+   
+   <!-- 게시판 글 출력 번호 수정하는 update 문을 내포한 update 태그 선언 -->
+   <!-- update 태그의 parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+   <!-- update 태그안에서는 resultType 속성이 없다. 리턴값은 자동으로 int 형이다. -->
+   <update id="updatePrint_no" parameterType="com.naver.erp.BoardDTO"> 
+   		<!-- 엄마글 밑에 있는 기존 댓글의 출력 순서 번호를 1씩 증가시켜라 -->
+   		<!-- 이래야 내가 엄마 글 다음으로 들어 갈 수 있으니까 -->
+   		<!-- 아래  SQL 구문에서 #{b_no} 의미 -->
+		   	<!-- parameterType 속성에서 지정한 int 형의 데이터를 표현하라 -->
+		   	<!-- 이때 b_no 라는 스펠링은 다른 아무 것으로도 대체가 가능하다. -->
+		   	<!-- 즉 parameterType 속성에 숫자형, String형, Wraper형이 들어오면 아래 SQL 구문에 표현할 때 -->
+		   	<!-- #{아무이름명} 또는 ${아무이름명}으로 표현한다 -->
+		   	<!-- #이 붙으면 숫자형은 ' 없이 표현하고 String 형은 '를 붙여 표현한다. -->
+		   	<!-- $이 붙으면 숫자형은 ' 없이 표현한다. -->
+   		update board set print_no=print_no+1
+   		where group_no=(select group_no from board where b_no=${b_no})
+   			and print_no&gt;(select print_no from board where b_no=${b_no}) 
+   </update>
+   
+   <!-- [게시판 글 조회수 수정]하는 update문을 내포한 update 태그 선언 -->
+   <!-- update 태그의 parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+   <!-- update 태그안에서는 resultType 속성이 없다. 리턴값은 자동으로 int 형이다. -->
+   <update id="updateReadcount" parameterType="int">
+   <!-- 아래  SQL 구문에서 #{b_no} 의미 -->
+	   	<!-- parameterType 속성에서 지정한 int 형의 데이터를 표현하라 -->
+	   	<!-- 이때 b_no 라는 스펠링은 다른 아무 것으로도 대체가 가능하다. -->
+	   	<!-- 즉 parameterType 속성에 숫자형, String형, Wraper형이 들어오면 아래 SQL 구문에 표현할 때 -->
+	   	<!-- #{아무이름명} 또는 ${아무이름명}으로 표현한다 -->
+	   	<!-- #이 붙으면 숫자형은 ' 없이 표현하고 String 형은 '를 붙여 표현한다. -->
+	   	<!-- $이 붙으면 숫자형은 ' 없이 표현한다. -->
+   			update board
+   			set readcount=readcount+1
+   			where b_no=#{b_no}
+   </update>
+   
+   
+   <!-- 게시판 1개 글 검색하는 select문을 내포한 select 태그 선언 -->
+   <!-- select 태그의 parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함 -->
+   <!-- select 태그의 resultType 속성은 select 쿼리 실행 후 리턴하는 데이터의 자료형이다. -->
+   <select id="getBoardDTO" parameterType="int" resultType="com.naver.erp.BoardDTO">
+   	<!-- 아래  SQL 구문에서 #{b_no} 의미 -->
+	   	<!-- parameterType 속성에서 지정한 int 형의 데이터를 표현하라 -->
+	   	<!-- 이때 b_no 라는 스펠링은 다른 아무 것으로도 대체가 가능하다. -->
+	   	<!-- 즉 parameterType 속성에 숫자형, String형, Wraper형이 들어오면 아래 SQL 구문에 표현할 때 -->
+	   	<!-- #{아무이름명} 또는 ${아무이름명}으로 표현한다 -->
+	   	<!-- #이 붙으면 숫자형은 ' 없이 표현하고 String 형은 '를 붙여 표현한다. -->
+	   	<!-- $이 붙으면 숫자형은 ' 없이 표현한다. -->
+   	select
+   		b_no	"b_no"
+   		,subject	"subject"
+   		,writer		"writer"
+   		,reg_date	"reg_date"
+   		,readcount	"readcount"
+   		,content	"content"
+   		,pwd		"pwd"
+   		,email		"email"
+   		,group_no	"group_no"
+   		,print_no	"print_no"
+   		,print_level	"print_level"
+   		from board
+   		where b_no=#{b_no}
+   </select>
+   
+   
+   
+    <!-- 게시판 글 수정하는 update 문을 내포한 update 태그 선언 -->
+   <!-- parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함. -->
+   <!-- update 태그안에는 resultType 속성이 없다. 리턴값은 값을 자동으로 int 형이다. -->
+   <!-- insert, update, delete 태그도 동일하다. -->
+   <update id="updateBoard" parameterType="com.naver.erp.BoardDTO">
+   		<!-- 게시판 고유번호가 존재하고, 암호도 존재하고, 아들글이 없으면 게시판 글 수정하라 -->
+   		<!-- 아래 SQL 구문에서 #{속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열이면 싱글쿼트(') 를 붙여 표현한다 -->
+	   		<!-- 이때 데이터가 숫자면 싱글쿼트(') 없이 표현한다 -->
+	   	<!-- 아래 SQL 구문에서 ${속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열,숫자 상관웞이 싱글쿼트(')없이 표현한다 -->
+   		update 
+   			board
+   		set
+   			subject = #{subject}
+   			,writer = #{writer}
+   			,content = #{content}
+   			,email	= #{email}
+   		where
+   			b_no = #{b_no} 
+   			and pwd = #{pwd}
+   			and ( 
+	   			select count(*) from board where group_no = (select group_no from board where b_no=${b_no} ) 
+	   			and print_no = (select print_no+1 from board where b_no=${b_no} ) 
+	   			and print_level = (select print_level+1 from board where b_no=${b_no} )
+   			)=0
+   </update>
+   
+   
+   <!-- 게시판 글 삭제하는 delete 문을 내포한 delete 태그 선언 -->
+   <!-- parameterType 속성은 안에 내장된 쿼리 호출하면서 넘겨줄 데이터의 자료형을 지정함. -->
+   <!-- delete 태그안에는 resultType 속성이 없다. 리턴값은 값을 자동으로 int 형이다. -->
+   <!-- insert, update, delete 태그도 동일하다. -->
+   <delete id="deleteBoard" parameterType="com.naver.erp.BoardDTO">
+   		<!-- 게시판 고유번호가 존재하고, 암호도 존재하고, 아들글이 없으면 게시판 글 삭제하라 -->
+   		<!-- 아래 SQL 구문에서 #{속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열이면 싱글쿼트(') 를 붙여 표현한다 -->
+	   		<!-- 이때 데이터가 숫자면 싱글쿼트(') 없이 표현한다 -->
+	   	<!-- 아래 SQL 구문에서 ${속성변수명}의미 -->
+	   		<!--parameterType 속성에서 지정한 DTO 객체가 소유한 속성변수 안의 데이터를 표현하라 -->
+	   		<!-- 이떄 데이터가 문자열,숫자 상관웞이 싱글쿼트(')없이 표현한다 -->
+	   		
+   		delete from board
+   		where 
+   			b_no = #{b_no} and pwd = #{pwd}
+   			and ( select count(*) from board where group_no=(select group_no from board where b_no=${b_no}) 
+   			and print_no=(select print_no+1 from board where b_no=${b_no}) 
+   			and print_level=(select print_level+1 from board where b_no=${b_no}))=0
+   </delete>
+   
+   
+   
+</mapper>

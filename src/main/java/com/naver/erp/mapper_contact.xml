@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--*******************************************************-->
+	<!-- 연락처 종사분야 목록 검색 select 문을 내포한 select 태그 선언-->
+	<!--*******************************************************-->
+		<!-- <select> 태그 속성 설명-->
+			<!-- id="getSaup_fieldList"      ==> SQL 구문의 고유 아이디값 설정. DAO 클래스의 메소드 이름과 동일함-->
+			<!-- parameterType="hashmap"  ==> SQL 구문에 삽입될 외부 데이터의 자료형 설정-->
+			<!-- resultType="hashmap"         ==> SQL 구문의 실행 후 리턴값 자료형 설정-->
+<mapper namespace="com.naver.erp.ContactDAO">
+<select id="getSaup_fieldList" resultType="hashmap">
+	select saup_field_code||'' "saup_field_code"
+			, saup_field_name	"saup_field_name" 
+	from code_saup_field 
+
+</select>
+
+<select id="getContactListAllCnt" parameterType="com.naver.erp.ContactSearchDTO" resultType="int">
+	
+	select count(*) from contact c
+	where 1=1
+	
+	<if test="min_reg_year != null and min_reg_year != '' and min_reg_month != null and min_reg_month != ''">
+		<![CDATA[
+		and c.reg_date>=to_date( '${min_reg_year}-${min_reg_month}-01', 'YYYY-MM-DD' )
+		]]>
+	</if>
+	<if test="max_reg_year != null and max_reg_year != '' and max_reg_month != null and max_reg_month != ''">
+		<![CDATA[
+		and c.reg_date<=last_day(  to_date( '${max_reg_year}-${max_reg_month}', 'YYYY-MM' )	)
+		]]>
+	</if>
+	<if test="keyword1 != null and keyword1 != ''">
+		and (
+			upper(c.contact_name) like upper('%${keyword1}%')
+			or upper(c.phone) like upper('%${keyword1}%')
+			or upper(c.reg_date) like upper('%${keyword1}%')
+			or c.contact_no = any(
+					select contact_no from contact_saup_field
+					where saup_field_code = any(
+					select saup_field_code from code_saup_field
+					where upper(saup_field_name) like upper('%${keyword1}%') 
+					)
+					)
+			)
+		
+	</if>
+	
+	<!-- 연락처 사업 분야 검색 조건 붙이기 -->
+	<if test="saup_field != null and saup_field.size() > 0">
+		and(
+			c.contact_no = any( select contact_no from contact_saup_field where saup_field_code in
+			<foreach item="saup_field" collection="saup_field" index="index" open="(" separator="," close=")" >
+				#{saup_field}
+			</foreach>
+			)
+		)
+	</if>
+</select>
+
+
+<select id="getContactList" parameterType="com.naver.erp.ContactSearchDTO" resultType="java.util.HashMap">
+	select * from (select zzz.*, rownum RNUM from(
+		select
+			c.contact_no||''	as	"contact_no"
+			,c.contact_name		as 	"contact_name"
+			,c.phone			as	"phone"
+			,(
+				select
+					substr(xmlagg(xmlelement(x,',',s.saup_field_name)).extract('//text()'),2)
+				from code_saup_field s
+				where s.saup_field_code=any(select saup_field_code from contact_saup_field where contact_no=c.contact_no)
+			)	as "saup_field"
+			, to_char(c.reg_date,'YYYY-MM-DD')		as	"reg_date"
+		from contact c
+		where 1=1
+		<if test="min_reg_year != null and min_reg_year != '' and min_reg_month != null and min_reg_month != ''">
+			<![CDATA[
+				and c.reg_date>=to_date( '${min_reg_year}-${min_reg_month}-01', 'YYYY-MM-DD' )
+			]]>
+		</if>
+		<if test="max_reg_year != null and max_reg_year != '' and max_reg_month != null and max_reg_month != ''">
+			<![CDATA[
+			and c.reg_date<=last_day(  to_date( '${max_reg_year}-${max_reg_month}', 'YYYY-MM' )	)
+			]]>
+		</if>
+	<if test="keyword1 != null and keyword1 != ''">
+		and (
+			upper(c.contact_name) like upper('%${keyword1}%')
+			or upper(c.phone) like upper('%${keyword1}%')
+			or upper(c.reg_date) like upper('%${keyword1}%')
+			or c.contact_no = any(
+					select contact_no from contact_saup_field
+					where saup_field_code = any(
+					select saup_field_code from code_saup_field
+					where upper(saup_field_name) like upper('%${keyword1}%') 
+					)
+					)
+			)
+		
+	</if>
+	<!-- 연락처 사업 분야 검색 조건 붙이기 -->
+	<if test="saup_field != null and saup_field.size() > 0">
+		and(
+			c.contact_no = any( select contact_no from contact_saup_field where saup_field_code in
+			<foreach item="saup_field" collection="saup_field" index="index" open="(" separator="," close=")" >
+				#{saup_field}
+			</foreach>
+			)
+		)
+	</if>
+	<if test="sort!=null and sort!=''">
+		order by ${sort}
+	</if>
+	<if test="sort==null or sort==''">
+		order by to_char(c.reg_date,	'YYYY-MM-DD HHMISS') desc
+	</if>
+	
+	<![CDATA[
+		) zzz) where RNUM >= #{beginRowNo} and RNUM <= #{endRowNo}
+	]]>
+	
+</select>
+
+
+<insert id="insertContact" parameterType="com.naver.erp.ContactDTO">
+	insert into contact(
+		contact_no
+		, contact_name
+		, phone
+	) values(
+		(select nvl(max(contact_no),0)+1 from contact)
+		,#{contact_name}
+		,#{phone}
+	)
+</insert>
+
+<!-- insert into contact_saup_field values(1,1)
+	insert into contact_saup_field values(1,2)
+	insert into contact_saup_field values(1,3)
+	insert into contact_saup_field values(1,4) -->
+	
+<!-- insert into contact_saup_field 
+									select 1,1 from dual
+									union
+									select 1,2 from dual
+									union
+									select 1,3 from dual
+									union
+									select 1,4 from dual -->
+
+
+<insert id="insertContactSaup_field" parameterType="com.naver.erp.ContactDTO">
+	insert into contact_saup_field(contact_no, saup_field_code)
+	
+	<!-- [mybatis 반복문]으로 돌리면서 -->
+	<!-- ContactDTO 객체의 saup_field 속성변수 안의 List<Integer> 객체 안의 Integer 데이터를 -->
+	<!-- 하나씩 꺼내어 쿼리에 참여 시킨다 -->
+		<!-- [mybatis 반복문]의 속성 설명 -->
+		<!-- collection="배열/List 객체의 변수명" -->
+		<!-- item="배열객체 또는 List 객체안의 데이터를 저장할 지역변수명" -->
+		<!-- index="반복문안에서 사용할 인덱스 번호 저장 변수명" -->
+		<!-- open="반복문 시작전에 삽입할 문자" -->
+		<!-- close="반복문 끝난 후에 삽입할 문자" -->
+		<!-- separator="반복문에 의해 표현되는 쿼리문 사이사이에 삽입될 쿼리일부분" -->
+	<foreach item="saup_field_code" collection="saup_field" index="idx" open="" separator=" union" close="">
+		select
+			<if test="contact_no>0">
+				#{contact_no}
+			</if>
+			<if test="contact_no==0">
+				(select max(contact_no) from contact)
+			</if>
+				,#{saup_field_code}
+				from dual
+	</foreach>
+
+</insert>
+
+
+<!-- [1개의 기본 연락처] 검색하는 select 문을 내포한 select 태그 선언 -->
+<select id="getContact" parameterType="int" resultType="com.naver.erp.ContactDTO">
+	select
+		contact_no	"contact_no"
+		,contact_name	"contact_name"
+		,phone			"phone"
+		,reg_date		"reg_date"
+	from contact
+	where contact_no=#{contact_no}
+						
+</select>
+
+<!-- [1개 연락처 사업분야 정보] 검색하는 select 문을 내포한 select 태그 선언, 수정화면에서 사용함 -->
+<select id="getContactSaup_field" parameterType="int" resultType="int">
+	select
+		saup_field_code 	as	"saup_field_code"
+	from contact_saup_field
+	where contact_no=#{contact_no}
+</select>
+
+
+	<!--****************************************************************-->
+	<!-- [1개 연락처 기본 정보] 수정하는 update 문을 내포한 update 태그 선언-->
+	<!--****************************************************************-->
+	<update id="updateContact" parameterType="com.naver.erp.ContactDTO">
+		update  contact 
+		set  
+			 contact_name=#{contact_name}
+			 , phone=#{phone}
+		where 
+			contact_no=#{contact_no}
+       		and ( select count(*) from contact where contact_no!=#{contact_no} 
+							                          and contact_name=#{contact_name} and phone=#{phone} )=0
+	</update> 
+	
+	<!--****************************************************************-->
+	<!-- [연락처 사업 정보] 삭제하는 delete 문을 내포한 delete 태그 선언-->
+	<!--****************************************************************-->
+	<delete id="deleteContactSaup_field" parameterType="int">
+		delete from contact_saup_field 
+		where  contact_no=#{contact_no}
+       		<!-- and ( select count(*) from contact where contact_no=#{contact_no} )=1 -->
+	</delete> 
+	
+	<!--****************************************************************-->
+	<!--[연락처 기본 정보] 삭제하는 delete 문을 내포한 delete 태그 선언-->
+	<!--****************************************************************-->
+	<delete id="deleteContact" parameterType="int">
+		delete from contact 
+		where  contact_no=#{contact_no}
+	</delete> 
+
+
+</mapper>
